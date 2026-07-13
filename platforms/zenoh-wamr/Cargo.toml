@@ -1,0 +1,30 @@
+[package]
+name = "zenoh-wamr"
+authors = []
+categories = ["network-programming"]
+description = "Zenoh: The Zero Overhead Pub/Sub/Query Protocol."
+edition = "2024"
+homepage = "http://zenoh.io"
+license = "EPL-2.0 OR Apache-2.0"
+repository = "https://github.com/eclipse-zenoh/zenoh-nostd"
+rust-version = "1.91.0"
+version = "0.1.0"
+
+# This crate targets wasm32-wasip1 running on WAMR (WebAssembly Micro Runtime).
+# Unlike zenoh-wasm (browser, wasm32-unknown-unknown, yawc + wasm-bindgen), this
+# platform talks to WAMR's WASI socket extension directly and provides its own
+# single-threaded executor + poll_oneoff reactor + embassy-time driver.
+
+[dependencies]
+zenoh-nostd = { version = "0.1.0", path = "../../crates/zenoh-nostd" }
+
+# We register our own embassy-time driver (backed by WASI clock_time_get +
+# poll_oneoff), so we enable a tick rate but NOT the `std`/`mock-driver`
+# features (those ship their own driver). 1 MHz => 1 tick = 1 microsecond.
+embassy-time = { version = "0.5.0", default-features = false, features = ["tick-hz-1_000_000"] }
+embassy-time-driver = "0.2.1"
+# Standalone generic timer queue (not the executor-integrated one).
+embassy-time-queue-utils = { version = "0.3.0", features = ["generic-queue-64"] }
+
+# WASI random_get is getrandom's default backend on `target_os = "wasi"`.
+getrandom = "0.2"
