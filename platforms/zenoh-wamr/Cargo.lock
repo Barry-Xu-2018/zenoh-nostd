@@ -485,6 +485,7 @@ dependencies = [
 name = "zenoh-wamr"
 version = "0.1.0"
 dependencies = [
+ "embassy-futures",
  "embassy-time",
  "embassy-time-driver",
  "embassy-time-queue-utils",

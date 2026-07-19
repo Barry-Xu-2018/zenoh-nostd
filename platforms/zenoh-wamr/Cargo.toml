@@ -26,5 +26,8 @@ embassy-time-driver = "0.2.1"
 # Standalone generic timer queue (not the executor-integrated one).
 embassy-time-queue-utils = { version = "0.3.0", features = ["generic-queue-64"] }
 
+# Concurrent composition for examples/tests (select/join under one root future).
+embassy-futures = "0.1.2"
+
 # WASI random_get is getrandom's default backend on `target_os = "wasi"`.
 getrandom = "0.2"
