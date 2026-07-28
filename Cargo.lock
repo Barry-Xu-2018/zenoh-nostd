@@ -3587,6 +3587,7 @@ dependencies = [
  "zenoh-embassy",
  "zenoh-nostd",
  "zenoh-std",
+ "zenoh-wamr",
  "zenoh-wasm",
 ]
 
@@ -3638,6 +3639,18 @@ dependencies = [
  "futures-util",
  "socket2",
  "wtx",
+ "zenoh-nostd",
+]
+
+[[package]]
+name = "zenoh-wamr"
+version = "0.1.0"
+dependencies = [
+ "embassy-futures",
+ "embassy-time",
+ "embassy-time-driver",
+ "embassy-time-queue-utils",
+ "getrandom",
  "zenoh-nostd",
 ]
 

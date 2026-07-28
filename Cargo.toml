@@ -83,6 +83,7 @@ alloc = ["zenoh-nostd/alloc"]
 
 std = [
     "dep:zenoh-std",
+    "dep:embassy-executor",
 
     "dep:env_logger",
 
@@ -92,6 +93,7 @@ std = [
 ]
 esp32s3 = [
     "dep:zenoh-embassy",
+    "dep:embassy-executor",
     "dep:getrandom",
     "dep:esp-bootloader-esp-idf",
     "dep:esp-hal",
@@ -104,6 +106,7 @@ esp32s3 = [
 ]
 wasm = [
     "dep:zenoh-wasm",
+    "dep:embassy-executor",
 
     "dep:env_logger",
 
@@ -115,19 +118,27 @@ wasm = [
     "embassy-executor/executor-thread",
     "embassy-time/wasm",
 ]
+# WAMR guest on wasm32-wasip1: custom executor + time driver inside zenoh-wamr.
+# Do NOT enable embassy-executor arch-* or embassy-time/{std,wasm} here —
+# invoke examples via `zenoh_wamr::executor::block_on`.
+wamr = [
+    "dep:zenoh-wamr",
+    "dep:env_logger",
+]
 
 [dependencies]
 zenoh-nostd = { workspace = true }
 
 static_cell = { workspace = true }
 embassy-sync = { workspace = true  }
-embassy-executor = { workspace = true }
+embassy-executor = { workspace = true, optional = true }
 embassy-time = { workspace = true }
 embassy-futures = { workspace = true }
 
 zenoh-std = { version = "0.1.0", path = "platforms/zenoh-std", optional = true }
 zenoh-embassy = { version = "0.1.0", path = "platforms/zenoh-embassy", optional = true }
 zenoh-wasm = { version = "0.1.0", path = "platforms/zenoh-wasm", optional = true }
+zenoh-wamr = { version = "0.1.0", path = "platforms/zenoh-wamr", optional = true }
 
 env_logger = { version = "0.11", optional = true}
 

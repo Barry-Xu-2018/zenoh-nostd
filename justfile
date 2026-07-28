@@ -80,3 +80,9 @@ wasm example *args:
     RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --no-default-features --features="wasm,web_console" --features={{ args }} --target wasm32-unknown-unknown --example {{ example }}
     wasm-bindgen --target web --out-dir ./examples/web/ ./target/wasm32-unknown-unknown/debug/examples/{{ example }}.wasm --out-name z_example
     basic-http-server ./examples/web
+
+# WAMR (iwasm) guest on wasm32-wasip1. Requires `iwasm` on PATH (brew install wamr).
+# Typically pair with a local router: `zenohd -l tcp/127.0.0.1:7447`
+wamr example *args:
+    cargo build --no-default-features --features="wamr,log,alloc" --features={{ args }} --target wasm32-wasip1 --example {{ example }}
+    iwasm --addr-pool=0.0.0.0/0 --allow-resolve='*' ./target/wasm32-wasip1/debug/examples/{{ example }}.wasm

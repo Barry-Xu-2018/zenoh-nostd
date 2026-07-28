@@ -5,6 +5,7 @@
 use zenoh_examples::*;
 use zenoh_nostd::session::*;
 
+#[cfg(not(feature = "wamr"))]
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
@@ -53,15 +54,70 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     Ok(())
 }
 
+/// WAMR path: single root future under our `block_on` + `poll_oneoff` reactor.
+#[cfg(feature = "wamr")]
+async fn entry_wamr() -> zenoh::ZResult<()> {
+    #[cfg(feature = "log")]
+    env_logger::init();
+
+    zenoh::info!("zenoh-nostd z_sub example (wamr)");
+
+    use static_cell::StaticCell;
+    static CHANNEL: StaticCell<
+        embassy_sync::channel::Channel<
+            embassy_sync::blocking_mutex::raw::NoopRawMutex,
+            FixedCapacitySample<128, 128>,
+            8,
+        >,
+    > = StaticCell::new();
+    let channel: &'static _ = CHANNEL.init(embassy_sync::channel::Channel::new());
+
+    let config = init_session_example_wamr();
+    let session = if LISTEN {
+        zenoh::listen!(ExampleConfig: config, Endpoint::try_from(ENDPOINT)?)
+    } else {
+        zenoh::connect!(ExampleConfig: config, Endpoint::try_from(ENDPOINT)?)
+    };
+
+    let subscriber = session
+        .declare_subscriber(zenoh::keyexpr::new("demo/example/**")?)
+        .channel(channel.dyn_sender(), channel.dyn_receiver())
+        .finish()
+        .await?;
+
+    embassy_futures::select::select(session.run(), async {
+        while let Some(sample) = subscriber.recv().await {
+            zenoh::info!(
+                "[Subscriber] Received sample ('{}': '{}')",
+                sample.keyexpr().as_str(),
+                core::str::from_utf8(sample.payload()).unwrap()
+            );
+        }
+
+        Ok::<(), Error>(())
+    })
+    .await;
+
+    Ok(())
+}
+
+#[cfg(not(feature = "wamr"))]
 #[cfg_attr(feature = "std", embassy_executor::main)]
 #[cfg_attr(feature = "wasm", embassy_executor::main)]
 #[cfg_attr(feature = "esp32s3", esp_rtos::main)]
-
 async fn main(spawner: embassy_executor::Spawner) {
     if let Err(e) = entry(spawner).await {
         zenoh::error!("Error in main: {}", e);
     }
 
+    zenoh::info!("Exiting main");
+}
+
+#[cfg(feature = "wamr")]
+fn main() {
+    if let Err(e) = zenoh_wamr::executor::block_on(entry_wamr()) {
+        zenoh::error!("Error in main: {}", e);
+    }
     zenoh::info!("Exiting main");
 }
 

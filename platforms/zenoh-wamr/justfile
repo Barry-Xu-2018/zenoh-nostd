@@ -1,0 +1,5 @@
+check:
+    cargo clippy --target wasm32-wasip1 --all-targets
+
+fix:
+    cargo clippy --target wasm32-wasip1 --all-targets --fix --allow-dirty --allow-staged

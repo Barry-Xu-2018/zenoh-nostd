@@ -5,6 +5,7 @@
 use zenoh_examples::*;
 use zenoh_nostd::session::*;
 
+#[cfg(not(feature = "wamr"))]
 #[embassy_executor::task]
 async fn session_task(session: &'static Session<'static, ExampleConfig>) {
     if let Err(e) = session.run().await {
@@ -12,6 +13,7 @@ async fn session_task(session: &'static Session<'static, ExampleConfig>) {
     }
 }
 
+#[cfg(not(feature = "wamr"))]
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
@@ -47,6 +49,47 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     }
 }
 
+/// WAMR path: single root future under our `block_on` + `poll_oneoff` reactor.
+/// `session.run()` and the publish loop are composed with `join` (no Spawner).
+#[cfg(feature = "wamr")]
+async fn entry_wamr() -> zenoh::ZResult<()> {
+    #[cfg(feature = "log")]
+    env_logger::init();
+
+    zenoh::info!("zenoh-nostd z_pub example (wamr)");
+
+    let config = init_session_example_wamr();
+    let session = if LISTEN {
+        zenoh::listen!(ExampleConfig: config, Endpoint::try_from(ENDPOINT)?)
+    } else {
+        zenoh::connect!(ExampleConfig: config, Endpoint::try_from(ENDPOINT)?)
+    };
+
+    let publisher = session
+        .declare_publisher(zenoh::keyexpr::new("demo/example")?)
+        .finish()
+        .await?;
+
+    let payload = b"Hello, from no-std!";
+
+    embassy_futures::join::join(session.run(), async {
+        loop {
+            if publisher.put(payload).finish().await.is_ok() {
+                zenoh::info!(
+                    "[Publisher] Sent PUT ('{}': '{}')",
+                    publisher.keyexpr().as_str(),
+                    core::str::from_utf8(payload).unwrap()
+                );
+            }
+            embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
+        }
+    })
+    .await
+    .0
+    .map_err(|e| e.into())
+}
+
+#[cfg(not(feature = "wamr"))]
 #[cfg_attr(feature = "std", embassy_executor::main)]
 #[cfg_attr(feature = "wasm", embassy_executor::main)]
 #[cfg_attr(feature = "esp32s3", esp_rtos::main)]
@@ -55,6 +98,14 @@ async fn main(spawner: embassy_executor::Spawner) {
         zenoh::error!("Error in main: {}", e);
     }
 
+    zenoh::info!("Exiting main");
+}
+
+#[cfg(feature = "wamr")]
+fn main() {
+    if let Err(e) = zenoh_wamr::executor::block_on(entry_wamr()) {
+        zenoh::error!("Error in main: {}", e);
+    }
     zenoh::info!("Exiting main");
 }
 

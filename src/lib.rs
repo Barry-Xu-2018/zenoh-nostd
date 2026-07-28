@@ -17,6 +17,9 @@ pub type LinkManager = zenoh_embassy::EmbassyLinkManager<'static, 512, 3>;
 #[cfg(feature = "wasm")]
 pub use zenoh_wasm::WasmLinkManager as LinkManager;
 
+#[cfg(feature = "wamr")]
+pub use zenoh_wamr::WamrLinkManager as LinkManager;
+
 #[cfg(feature = "esp32s3")]
 mod esp32s3_app {
     pub use embassy_net::{DhcpConfig, Runner, StackResources};
@@ -41,6 +44,7 @@ pub const ENDPOINT: &str = match option_env!("ENDPOINT") {
         if cfg!(feature = "wasm") {
             "ws/127.0.0.1:7446"
         } else {
+            // std / esp32s3 / wamr default to plain TCP.
             "tcp/127.0.0.1:7447"
         }
     }
@@ -73,6 +77,8 @@ const BUFF_SIZE: u16 = 512u16;
 #[cfg(feature = "std")]
 const BUFF_SIZE: u16 = u16::MAX;
 #[cfg(feature = "wasm")]
+const BUFF_SIZE: u16 = u16::MAX / 2;
+#[cfg(feature = "wamr")]
 const BUFF_SIZE: u16 = u16::MAX / 2;
 
 pub struct ExampleConfig {
@@ -153,6 +159,7 @@ impl ZSessionConfig for ExampleConfig {
     }
 }
 
+#[cfg(not(feature = "wamr"))]
 pub async fn init_broker_example(spawner: &embassy_executor::Spawner) -> ExampleConfig {
     #[cfg(feature = "std")]
     {
@@ -232,6 +239,7 @@ pub async fn init_broker_example(spawner: &embassy_executor::Spawner) -> Example
     }
 }
 
+#[cfg(not(feature = "wamr"))]
 pub async fn init_session_example(spawner: &embassy_executor::Spawner) -> ExampleConfig {
     #[cfg(feature = "std")]
     {
@@ -316,6 +324,14 @@ pub async fn init_session_example(spawner: &embassy_executor::Spawner) -> Exampl
         ExampleConfig {
             transports: TransportLinkManager::from(LinkManager::new(stack)),
         }
+    }
+}
+
+/// WAMR entry has no embassy `Spawner`; session setup is pure config plumbing.
+#[cfg(feature = "wamr")]
+pub fn init_session_example_wamr() -> ExampleConfig {
+    ExampleConfig {
+        transports: TransportLinkManager::from(LinkManager),
     }
 }
 
