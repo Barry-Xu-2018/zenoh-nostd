@@ -116,10 +116,22 @@ pub fn wait() {
     // monotonic clock (`SUBSCRIPTION_CLOCK_ABSTIME` → "Unimplemented absolute
     // sleep on monotonic clock" and returns immediately → busy spin). Always
     // use a REATIVE timeout = max(0, deadline - now).
+    //
+    // ALSO: when fd subscriptions are present, WAMR converts the clock timeout to
+    // poll() milliseconds by TRUNCATING (`timeout / 1_000_000`). A sub-millisecond
+    // remainder becomes poll(0), which returns immediately without sleeping. The
+    // timer is still not due, so I loop again with the same sub-ms remainder. On
+    // Zephyr native_sim the simulated clock only advances while threads block, so
+    // that loop never ends (the app freezes after a few publishes). Round UP to a
+    // whole millisecond so every armed wait really blocks.
     if next_ticks != u64::MAX && nsubs < MAX_SUBS {
         let now_ns = time::monotonic_nanos();
         let deadline_ns = ticks_to_nanos(next_ticks);
-        let rel_ns = deadline_ns.saturating_sub(now_ns).max(1); // at least 1ns
+        let rel_ns = deadline_ns
+            .saturating_sub(now_ns)
+            .div_ceil(1_000_000)
+            .max(1)
+            * 1_000_000;
         subs[nsubs] = Subscription {
             userdata: u64::MAX, // sentinel: clock event
             tag: wasi::EVENTTYPE_CLOCK,
