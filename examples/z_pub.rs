@@ -5,6 +5,39 @@
 use zenoh_examples::*;
 use zenoh_nostd::session::*;
 
+const VERSION: &str = env!("Z_PUB_VERSION");
+
+/// Fixed-size buffer so the payload can be formatted without `alloc`.
+struct PayloadBuf {
+    buf: [u8; 128],
+    len: usize,
+}
+
+impl PayloadBuf {
+    fn new(counter: u32) -> Self {
+        use core::fmt::Write;
+        let mut p = Self { buf: [0; 128], len: 0 };
+        let _ = write!(p, "Hello, from no-std! #{} (version {})", counter, VERSION);
+        p
+    }
+
+    fn as_bytes(&self) -> &[u8] {
+        &self.buf[..self.len]
+    }
+}
+
+impl core::fmt::Write for PayloadBuf {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        let end = self.len + s.len();
+        if end > self.buf.len() {
+            return Err(core::fmt::Error);
+        }
+        self.buf[self.len..end].copy_from_slice(s.as_bytes());
+        self.len = end;
+        Ok(())
+    }
+}
+
 #[cfg(not(feature = "wamr"))]
 #[embassy_executor::task]
 async fn session_task(session: &'static Session<'static, ExampleConfig>) {
@@ -18,7 +51,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh::info!("zenoh-nostd z_pub example");
+    zenoh::info!("zenoh-nostd z_pub example, version: {}", VERSION);
 
     let config = init_session_example(&spawner).await;
     let session = if LISTEN {
@@ -34,10 +67,13 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
         .finish()
         .await?;
 
-    let payload = b"Hello, from no-std!";
-
+    let mut counter: u32 = 0;
     loop {
+        let next = counter.wrapping_add(1);
+        let payload = PayloadBuf::new(next);
+        let payload = payload.as_bytes();
         if publisher.put(payload).finish().await.is_ok() {
+            counter = next;
             zenoh::info!(
                 "[Publisher] Sent PUT ('{}': '{}')",
                 publisher.keyexpr().as_str(),
@@ -56,7 +92,7 @@ async fn entry_wamr() -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh::info!("zenoh-nostd z_pub example (wamr)");
+    zenoh::info!("zenoh-nostd z_pub example (wamr), version: {}", VERSION);
 
     let config = init_session_example_wamr();
     let session = if LISTEN {
@@ -70,13 +106,18 @@ async fn entry_wamr() -> zenoh::ZResult<()> {
         .finish()
         .await?;
 
-    let payload = b"Hello, from no-std!";
-
     embassy_futures::join::join(session.run(), async {
+        let mut counter: u32 = 0;
         loop {
+            let next = counter.wrapping_add(1);
+            let payload = PayloadBuf::new(next);
+            let payload = payload.as_bytes();
             if publisher.put(payload).finish().await.is_ok() {
+                counter = next;
                 zenoh::info!(
-                    "[Publisher] Sent PUT ('{}': '{}')",
+                    "[Publisher] #{} Sent PUT (version {}) ('{}': '{}')",
+                    counter,
+                    VERSION,
                     publisher.keyexpr().as_str(),
                     core::str::from_utf8(payload).unwrap()
                 );
