@@ -78,8 +78,10 @@ const BUFF_SIZE: u16 = 512u16;
 const BUFF_SIZE: u16 = u16::MAX;
 #[cfg(feature = "wasm")]
 const BUFF_SIZE: u16 = u16::MAX / 2;
+// Small on WAMR: with `alloc` each buffer is a heap Vec, and growing the heap
+// makes WAMR realloc the whole linear memory on the (RAM-limited) device.
 #[cfg(feature = "wamr")]
-const BUFF_SIZE: u16 = u16::MAX / 2;
+const BUFF_SIZE: u16 = 2048u16;
 
 pub struct ExampleConfig {
     transports: TransportLinkManager<LinkManager>,

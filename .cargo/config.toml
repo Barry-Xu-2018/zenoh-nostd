@@ -1,0 +1,6 @@
+# WAMR guest (wasm32-wasip1). rustc's default 1 MiB shadow stack makes the
+# initial linear memory 18 pages (1.125 MiB), which does not fit on small MCUs
+# such as Spresense. z_pub needs >8 KiB (16 KiB tested OK); 32 KiB leaves margin.
+# Note: a RUSTFLAGS environment variable overrides these flags.
+[target.wasm32-wasip1]
+rustflags = ["-C", "link-arg=-zstack-size=32768"]

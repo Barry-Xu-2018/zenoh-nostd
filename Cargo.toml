@@ -86,6 +86,7 @@ std = [
     "dep:embassy-executor",
 
     "dep:env_logger",
+    "env_logger/default",
 
     "embassy-executor/arch-std",
     "embassy-executor/executor-thread",
@@ -109,6 +110,7 @@ wasm = [
     "dep:embassy-executor",
 
     "dep:env_logger",
+    "env_logger/default",
 
     "getrandom/std",
     "getrandom/js",
@@ -140,7 +142,9 @@ zenoh-embassy = { version = "0.1.0", path = "platforms/zenoh-embassy", optional 
 zenoh-wasm = { version = "0.1.0", path = "platforms/zenoh-wasm", optional = true }
 zenoh-wamr = { version = "0.1.0", path = "platforms/zenoh-wamr", optional = true }
 
-env_logger = { version = "0.11", optional = true}
+# Default features (regex filter, color, timestamps) are only enabled for the
+# std/wasm hosts: regex alone added ~350 KB to the WAMR (wasm32-wasip1) build.
+env_logger = { version = "0.11", optional = true, default-features = false }
 
 getrandom = { version = "0.2.16", features = ["custom"], optional = true }
 embassy-net = { version = "0.8.0", features = ["defmt", "dhcpv4", "medium-ethernet", "tcp", "udp"], optional = true }
